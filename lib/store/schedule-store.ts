@@ -48,27 +48,60 @@ export const useScheduleStore = create<ScheduleState>()(
 
       // Confirmar que la función saveSchedule guarda correctamente los datos
       saveSchedule: (schedule) => {
-        // Save to DB
+        // Asegurarse de que el horario tenga una fecha de creación
+        const scheduleToSave = {
+          ...schedule,
+          createdAt: schedule.createdAt || new Date().toISOString(),
+        }
+
+        // Guardar en la base de datos local
         if (db) {
-          db.saveSchedule(schedule)
+          db.saveSchedule(scheduleToSave)
         }
 
         set((state) => {
-          const updatedSchedules = state.schedules.map((s) => (s.id === schedule.id ? schedule : s))
+          // Buscar si el horario ya existe en savedSchedules
+          const existingIndex = state.savedSchedules.findIndex((s) => s.id === scheduleToSave.id)
 
-          // Asegurarse de que el horario se guarde en savedSchedules si no existe
+          // Crear copias de los arrays para evitar mutaciones directas
+          const updatedSchedules = [...state.schedules]
           const updatedSavedSchedules = [...state.savedSchedules]
-          const existingIndex = updatedSavedSchedules.findIndex((s) => s.id === schedule.id)
 
-          if (existingIndex >= 0) {
-            updatedSavedSchedules[existingIndex] = schedule
+          // Actualizar o agregar el horario en schedules
+          const scheduleIndex = updatedSchedules.findIndex((s) => s.id === scheduleToSave.id)
+          if (scheduleIndex >= 0) {
+            updatedSchedules[scheduleIndex] = scheduleToSave
           } else {
-            updatedSavedSchedules.push(schedule)
+            updatedSchedules.push(scheduleToSave)
+          }
+
+          // Actualizar o agregar el horario en savedSchedules
+          if (existingIndex >= 0) {
+            updatedSavedSchedules[existingIndex] = scheduleToSave
+          } else {
+            updatedSavedSchedules.push(scheduleToSave)
+          }
+
+          // Guardar en localStorage manualmente para asegurar persistencia
+          try {
+            localStorage.setItem(
+              "work-schedule-storage",
+              JSON.stringify({
+                state: {
+                  schedules: updatedSchedules,
+                  currentSchedule: scheduleToSave,
+                  savedSchedules: updatedSavedSchedules,
+                },
+                version: 0,
+              }),
+            )
+          } catch (error) {
+            console.error("Error saving to localStorage:", error)
           }
 
           return {
             schedules: updatedSchedules,
-            currentSchedule: schedule,
+            currentSchedule: scheduleToSave,
             savedSchedules: updatedSavedSchedules,
           }
         })
@@ -142,8 +175,17 @@ export const useScheduleStore = create<ScheduleState>()(
         const schedule = savedSchedules.find((s) => s.id === id)
 
         if (schedule) {
+          // Guardar en localStorage que este es el horario actual
+          try {
+            localStorage.setItem("current-schedule-id", id)
+          } catch (error) {
+            console.error("Error saving current schedule ID:", error)
+          }
+
           set({ currentSchedule: schedule })
+          return true
         }
+        return false
       },
 
       deleteScheduleFromHistory: (id) => {
