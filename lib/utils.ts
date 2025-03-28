@@ -28,15 +28,24 @@ export const safeLocalStorage = {
       localStorage.setItem(key, value)
     } catch (error) {
       console.error(`Error setting item ${key} in localStorage:`, error)
-      // Intentar limpiar el almacenamiento si está lleno
+
+      // Si el error es por espacio insuficiente, intentar liberar espacio
       if (
         error instanceof DOMException &&
         (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
       ) {
         try {
-          // Intentar eliminar elementos antiguos para liberar espacio
-          const keysToPreserve = ["work-schedule-storage", "work-shifts-storage", "work-employees-storage"]
+          // Preservar las claves importantes
+          const keysToPreserve = [
+            "work-schedule-storage",
+            "work-shifts-storage",
+            "work-employees-storage",
+            "current-schedule-id",
+            "schedule-visited",
+            "schedule-view-mode",
+          ]
 
+          // Eliminar elementos antiguos para liberar espacio
           for (let i = 0; i < localStorage.length; i++) {
             const storageKey = localStorage.key(i)
             if (storageKey && !keysToPreserve.includes(storageKey)) {
@@ -48,6 +57,16 @@ export const safeLocalStorage = {
           localStorage.setItem(key, value)
         } catch (e) {
           console.error("No se pudo liberar espacio en localStorage:", e)
+
+          // Último recurso: limpiar todo excepto lo esencial
+          if (key === "work-schedule-storage" || key === "work-shifts-storage" || key === "work-employees-storage") {
+            try {
+              localStorage.clear()
+              localStorage.setItem(key, value)
+            } catch (finalError) {
+              console.error("Error fatal al guardar datos:", finalError)
+            }
+          }
         }
       }
     }
@@ -59,6 +78,20 @@ export const safeLocalStorage = {
       localStorage.removeItem(key)
     } catch (error) {
       console.error(`Error removing item ${key} from localStorage:`, error)
+    }
+  },
+
+  // Método para verificar si localStorage está disponible y funcionando
+  isAvailable: (): boolean => {
+    if (!isClient) return false
+    try {
+      const testKey = "__test__"
+      localStorage.setItem(testKey, testKey)
+      const result = localStorage.getItem(testKey) === testKey
+      localStorage.removeItem(testKey)
+      return result
+    } catch (e) {
+      return false
     }
   },
 }
