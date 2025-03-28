@@ -68,6 +68,7 @@ export default function HomePage() {
       // Marcar como inicializado para evitar múltiples ejecuciones
       setIsInitialized(true)
 
+      // Verificar si localStorage está disponible
       // Verificar si es la primera visita
       const isFirstVisit = !localStorage.getItem("schedule-visited")
 
