@@ -12,7 +12,6 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: "نظام إدارة جداول العمل",
   description: "تطبيق لإدارة جداول العمل وتنظيم الورديات للموظفين",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -38,12 +37,51 @@ export default function RootLayout({
                   navigator.serviceWorker.register('/service-worker.js').then(
                     function(registration) {
                       console.log('Service Worker registration successful with scope: ', registration.scope);
+                      
+                      // Verificar si hay una nueva versión del Service Worker
+                      registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        
+                        // Cuando el nuevo Service Worker cambie de estado
+                        newWorker.addEventListener('statechange', () => {
+                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // Hay una nueva versión lista para usar
+                            if (confirm('Hay una nueva versión de la aplicación disponible. ¿Desea actualizar ahora?')) {
+                              // Enviar mensaje al Service Worker para que se active inmediatamente
+                              newWorker.postMessage({ type: 'SKIP_WAITING' });
+                              // Recargar la página para usar la nueva versión
+                              window.location.reload();
+                            }
+                          }
+                        });
+                      });
                     },
                     function(err) {
                       console.log('Service Worker registration failed: ', err);
                     }
                   );
+                  
+                  // Verificar el estado de la conexión
+                  window.addEventListener('online', () => {
+                    console.log('Conexión restablecida');
+                    // Opcional: mostrar notificación al usuario
+                  });
+                  
+                  window.addEventListener('offline', () => {
+                    console.log('Sin conexión');
+                    // Opcional: mostrar notificación al usuario
+                  });
                 });
+              }
+              
+              // Verificar si localStorage está disponible
+              try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                console.log('localStorage está disponible');
+              } catch (e) {
+                console.error('localStorage no está disponible:', e);
+                alert('Tu navegador no permite almacenamiento local. La aplicación no podrá guardar datos.');
               }
             `,
           }}
@@ -53,6 +91,3 @@ export default function RootLayout({
   )
 }
 
-
-
-import './globals.css'
